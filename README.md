@@ -1,3 +1,24 @@
+# Run
+
+installed toolchains
+--------------------
+
+stable-x86_64-apple-darwin (default)
+nightly-2023-01-01-x86_64-apple-darwin
+1.68.0-x86_64-apple-darwin
+
+installed targets for active toolchain
+--------------------------------------
+
+wasm32-unknown-unknown
+x86_64-apple-darwin
+
+active toolchain
+----------------
+
+stable-x86_64-apple-darwin (default)
+rustc 1.69.0 (84c898d65 2023-04-16)
+
 # Substrate Node Template
 
 A fresh [Substrate](https://substrate.io/) node, ready for hacking :rocket:
