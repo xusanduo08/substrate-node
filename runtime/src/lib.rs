@@ -249,6 +249,11 @@ impl pallet_balances::Config for Runtime {
 	type MaxHolds = ();
 }
 
+impl pallet_poe::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type MaxClaimLength = ConstU32<512>;
+}
+
 parameter_types! {
 	pub FeeMultiplier: Multiplier = Multiplier::one();
 }
@@ -290,6 +295,7 @@ construct_runtime!(
 		Sudo: pallet_sudo,
 		// Include the custom logic from the pallet-template in the runtime.
 		TemplateModule: pallet_template,
+		PoeModule: pallet_poe,
 	}
 );
 
