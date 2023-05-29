@@ -10,25 +10,23 @@ mod tests;
 
 #[frame_support::pallet]
 pub mod pallet {
-  use super::*;
+	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_system::{pallet_prelude::*, ensure_signed};
-  use sp_std::prelude::*;
-
+	use frame_system::{ensure_signed, pallet_prelude::*};
+	use sp_std::prelude::*;
 
 	#[pallet::config] // 模块配置
 	pub trait Config: frame_system::Config {
-    #[pallet::constant]
+		#[pallet::constant]
 		type MaxClaimLength: Get<u32>;
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 	}
 
-
 	#[pallet::pallet]
-  #[pallet::generate_store(pub(super) trait Store)]
+	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(_);
 
-  #[pallet::storage]
+	#[pallet::storage]
 	pub(super) type Proofs<T: Config> = StorageMap<
 		_,
 		Blake2_128Concat,
@@ -36,75 +34,87 @@ pub mod pallet {
 		(T::AccountId, T::BlockNumber),
 	>;
 
-  #[pallet::event]
-  #[pallet::generate_deposit(pub(super) fn deposit_event)]
-  pub enum Event<T: Config> {
-    ClaimCreated(T::AccountId, BoundedVec<u8, T::MaxClaimLength>),
-    ClaimRevoked(T::AccountId, BoundedVec<u8, T::MaxClaimLength>),
-  }
+	#[pallet::event]
+	#[pallet::generate_deposit(pub(super) fn deposit_event)]
+	pub enum Event<T: Config> {
+		ClaimCreated(T::AccountId, BoundedVec<u8, T::MaxClaimLength>),
+		ClaimRevoked(T::AccountId, BoundedVec<u8, T::MaxClaimLength>),
+	}
 
-  #[pallet::error]
-  pub enum Error<T> {
-    ProofAlreadyExist,
-    ClaimTooLong,
-    ClaimNotExist,
-    NotClaimOwner,
-  }
+	#[pallet::error]
+	pub enum Error<T> {
+		ProofAlreadyExist,
+		ClaimTooLong,
+		ClaimNotExist,
+		NotClaimOwner,
+	}
 
+	#[pallet::call]
+	impl<T: Config> Pallet<T> {
+		// 创建存证
+		#[pallet::weight(0)]
+		#[pallet::call_index(0)]
+		pub fn create_claim(
+			origin: OriginFor<T>,
+			claim: BoundedVec<u8, T::MaxClaimLength>,
+		) -> DispatchResult {
+			// origin 交易的发送方，claim 存证
+			// 校验交易的发送方
+			let sender = ensure_signed(origin)?;
+			// 校验存证是否超过我们允许的最大长度
+			// 将claim转换成BoundedVec类型
+			// let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
 
-  #[pallet::call]
-  impl<T: Config> Pallet<T> {
+			// 校验要创建的存证现在还不存在，如果存在则返回ProofAlreadyExist错误
+			ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
 
-    // 创建存证
-    #[pallet::weight(0)]
-    #[pallet::call_index(0)]
-    pub fn create_claim(origin: OriginFor<T>, claim: BoundedVec<u8, T::MaxClaimLength>) -> DispatchResult { // origin 交易的发送方，claim 存证
-      // 校验交易的发送方
-      let sender = ensure_signed(origin)?;
-      // 校验存证是否超过我们允许的最大长度
-      // 将claim转换成BoundedVec类型
-      // let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
+			// 插入存证
+			Proofs::<T>::insert(
+				&claim,
+				(sender.clone(), frame_system::Pallet::<T>::block_number()),
+			);
 
-      // 校验要创建的存证现在还不存在，如果存在则返回ProofAlreadyExist错误
-      ensure!(!Proofs::<T>::contains_key(&claim), Error::<T>::ProofAlreadyExist);
+			// 触发事件: 存证被创建
+			Self::deposit_event(Event::ClaimCreated(sender, claim));
 
-      // 插入存证
-      Proofs::<T>::insert(&claim, (sender.clone(), frame_system::Pallet::<T>::block_number()));
+			Ok(())
+		}
 
-      // 触发事件: 存证被创建
-      Self::deposit_event(Event::ClaimCreated(sender, claim));
+		// 销毁存证
+		#[pallet::weight(1)]
+		pub fn revoke_claim(
+			origin: OriginFor<T>,
+			claim: BoundedVec<u8, T::MaxClaimLength>,
+		) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+			// let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
+			let (owner, _) = Proofs::<T>::get(&claim).ok_or(Error::<T>::ClaimNotExist)?; // 获取到这个claim的owner
 
-      Ok(())
-    }
+			// 校验交易的发送方和claim的owner一致
+			ensure!(owner == sender, Error::<T>::NotClaimOwner);
 
-    // 销毁存证
-    #[pallet::weight(1)]
-    pub fn revoke_claim(origin: OriginFor<T>, claim: BoundedVec<u8, T::MaxClaimLength>) -> DispatchResult {
-      let sender = ensure_signed(origin)?;
-      // let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
-      let (owner, _) = Proofs::<T>::get(&claim).ok_or(Error::<T>::ClaimNotExist)?; // 获取到这个claim的owner
+			Proofs::<T>::remove(&claim);
+			Self::deposit_event(Event::ClaimRevoked(sender, claim));
+			Ok(())
+		}
 
-      // 校验交易的发送方和claim的owner一致
-      ensure!(owner == sender, Error::<T>::NotClaimOwner);
+		// 转移存证
+		#[pallet::weight(2)]
+		pub fn transfer_claim(
+			origin: OriginFor<T>,
+			claim: BoundedVec<u8, T::MaxClaimLength>,
+			dest: T::AccountId,
+		) -> DispatchResult {
+			// 验证发送方
+			let sender = ensure_signed(origin)?;
 
-      Proofs::<T>::remove(&claim);
-      Self::deposit_event(Event::ClaimRevoked(sender, claim));
-      Ok(())
-    }
+			// let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
 
-    // 转移存证
-    #[pallet::weight(2)]
-    pub fn transfer_claim(origin: OriginFor<T>, claim: BoundedVec<u8, T::MaxClaimLength>, dest: T::AccountId) -> DispatchResult {
-      // 验证发送方
-      let sender = ensure_signed(origin)?;
+			let (owner, _) = Proofs::<T>::get(&claim).ok_or(Error::<T>::ClaimNotExist)?;
+			ensure!(owner == sender, Error::<T>::NotClaimOwner);
 
-      // let bounded_claim = BoundedVec::<u8, T::MaxClaimLength>::try_from(claim.clone()).map_err(|_| Error::<T>::ClaimTooLong)?;
-
-      let (owner, _) = Proofs::<T>::get(&claim).ok_or(Error::<T>::ClaimNotExist)?;
-      ensure!(owner == sender, Error::<T>::NotClaimOwner);
-
-      Proofs::<T>::insert(claim, (dest, frame_system::Pallet::<T>::block_number()));
-      Ok(().into())
-    }
-  }
+			Proofs::<T>::insert(claim, (dest, frame_system::Pallet::<T>::block_number()));
+			Ok(().into())
+		}
+	}
 }
