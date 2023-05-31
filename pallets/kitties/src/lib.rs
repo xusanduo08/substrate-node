@@ -8,6 +8,9 @@ pub mod pallet {
   pub use frame_support::pallet_prelude::*;
   pub use frame_system::pallet_prelude::*;
 
+  use sp_io::hashing::blake2_128;
+  use frame_support::traits::Randomness;
+
 
   pub type KittyId = u32;
   #[derive(Encode, Decode,Clone, Copy, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -18,6 +21,7 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxClaimLength: Get<u32>;
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+    type KittyRandomness: Randomness<Self::Hash, Self::BlockNumber>;
 	}
 
   #[pallet::pallet]
