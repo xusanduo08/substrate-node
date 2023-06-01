@@ -8,7 +8,8 @@ pub mod pallet {
   pub use frame_support::pallet_prelude::*;
   pub use frame_system::pallet_prelude::*;
 
-  use sp_io::hashing::blake2_128;
+  use frame_system::{pallet_prelude::OriginFor, ensure_signed};
+use sp_io::hashing::blake2_128;
   use frame_support::traits::Randomness;
 
 
@@ -39,16 +40,24 @@ pub mod pallet {
   #[pallet::getter(fn kitty_owner)]
   pub type KittyOwner<T: Config> = StorageMap<_,Blake2_128Concat, KittyId, T::AccountId>;
 
+  #[pallet::storage]
+  #[pallet::getter(fn kitty_parents)]
+  pub type KittyParents<T: Config> = StorageMap<_, Blake2_128Concat, KittyId, (KittyId, KittyId), OptionQuery>;
+
   #[pallet::error]
   pub enum Error<T> {
     StorageOverflow,
     InvalidKittyId,
+    SameKittyId,
+    KittyNotExist,
+    NotOwner
   }
 
   #[pallet::event]
   #[pallet::generate_deposit(pub(super) fn deposit_event )]
   pub enum Event<T: Config> {
-    KittyCreated{sender: T::AccountId, kitty_id: KittyId, kitty: Kitty}
+    KittyCreated{sender: T::AccountId, kitty_id: KittyId, kitty: Kitty},
+    KittyTransfered{sender: T::AccountId, to: T::AccountId, kitty_id: KittyId},
   }
 
   #[pallet::call]
@@ -58,12 +67,61 @@ pub mod pallet {
     pub fn create(origin: OriginFor<T>) -> DispatchResult {
       let sender = ensure_signed(origin)?;
       let kitty_id = Self::get_next_id()?;
-      let kitty = Kitty(Default::default());
+      let kitty = Kitty(Self::random_value(&sender));
 
       Kitties::<T>::insert(kitty_id, &kitty);
       KittyOwner::<T>::insert(kitty_id, &sender);
 
       Self::deposit_event(Event::KittyCreated{ sender, kitty_id, kitty });
+      Ok(())
+    }
+
+    #[pallet::weight(1)]
+    #[pallet::call_index(1)]
+    pub fn breed(origin: OriginFor<T>, kitty_id1: KittyId, kitty_id2: KittyId) -> DispatchResult {
+      // 繁殖
+      let sender = ensure_signed(origin)?;
+      ensure!(kitty_id1 != kitty_id2, Error::<T>::SameKittyId);
+      // 要求两个kittyid是不一样的
+      // 确定是合法的kittyId
+      ensure!(Kitties::<T>::contains_key(kitty_id1), Error::<T>::InvalidKittyId);
+      ensure!(Kitties::<T>::contains_key(kitty_id2), Error::<T>::InvalidKittyId);
+
+      let kitty_id = Self::get_next_id()?; // 生成新kitty的id
+      let kitty1 = Self::kitties(kitty_id1).ok_or(Error::<T>::KittyNotExist)?;
+      let kitty2 = Self::kitties(kitty_id2).ok_or(Error::<T>::KittyNotExist)?;
+
+      let selector = Self::random_value(&sender);
+      let mut data = [0u8; 16];
+      for i in 0..kitty1.0.len() {
+        data[i] = (kitty1.0[i] & selector[i]) | (kitty2.0[i] & selector[i]);
+      } 
+
+      let kitty = Kitty(data);
+      // 将kitty放入kitties中
+      Kitties::<T>::insert(kitty_id, &kitty);
+      // 更新kittyOwner
+      KittyOwner::<T>::insert(kitty_id, &sender);
+      // 更新parent信息
+      KittyParents::<T>::insert(kitty_id, (kitty_id1, kitty_id2));
+
+      Self::deposit_event(Event::KittyCreated{ sender, kitty_id, kitty});
+
+      Ok(())
+    }
+
+    #[pallet::weight(2)]
+    #[pallet::call_index(2)]
+    pub fn transfer(sender: OriginFor<T>, to: T::AccountId, kitty_id: KittyId) -> DispatchResult {
+      let sender = ensure_signed(sender)?;
+      // kittyid存在
+      ensure!(KittyOwner::<T>::contains_key(kitty_id), Error::<T>::InvalidKittyId);
+      // kitty的owner是当前发起方
+      let owner = Self::kitty_owner(kitty_id).ok_or(Error::<T>::InvalidKittyId)?;
+      ensure!(sender == owner, Error::<T>::NotOwner);
+
+      KittyOwner::<T>::insert(kitty_id, &to);
+      Self::deposit_event(Event::KittyTransfered{ sender, to, kitty_id});
       Ok(())
     }
   }
@@ -75,6 +133,16 @@ pub mod pallet {
         *next_id = next_id.checked_add(1).ok_or(Error::<T>::InvalidKittyId)?;
         Ok(current_id)
       }) 
+    }
+
+    fn random_value(sender: &T::AccountId) -> [u8; 16] {
+      let payload = (
+        T::KittyRandomness::random_seed(),
+        &sender,
+        <frame_system::Pallet<T>>::extrinsic_index(),
+      );
+
+      payload.using_encoded(blake2_128)
     }
   }
 }
