@@ -2,6 +2,12 @@
 
 pub use pallet::*;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod test;
+
 #[frame_support::pallet]
 pub mod pallet {
 	pub use frame_support::pallet_prelude::*;
@@ -85,8 +91,9 @@ pub mod pallet {
 		) -> DispatchResult {
 			// 繁殖
 			let sender = ensure_signed(origin)?;
+      // 要求两个kittyid是不一样的
 			ensure!(kitty_id1 != kitty_id2, Error::<T>::SameKittyId);
-			// 要求两个kittyid是不一样的
+			
 			// 确定是合法的kittyId
 			ensure!(Kitties::<T>::contains_key(kitty_id1), Error::<T>::InvalidKittyId);
 			ensure!(Kitties::<T>::contains_key(kitty_id2), Error::<T>::InvalidKittyId);
