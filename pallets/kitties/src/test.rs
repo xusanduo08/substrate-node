@@ -1,4 +1,4 @@
-use crate::{mock::*, Error};
+use crate::{mock::*, Event, Error};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -9,7 +9,12 @@ fn create_kities_works() {
 
 		assert_eq!(KittiesModule::next_kitty_id(), kitty_id);
 		assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id)));
-
+    System::assert_has_event(
+      Event::KittyCreated {
+      sender: account_id,
+      kitty_id,
+      kitty: KittiesModule::kitties(kitty_id).unwrap(),
+    }.into());
 		assert_eq!(KittiesModule::next_kitty_id(), kitty_id + 1);
 		assert_eq!(KittiesModule::kitties(kitty_id).is_some(), true); // 创建的kitty是存在的
 		assert_eq!(KittiesModule::kitty_owner(kitty_id), Some(account_id)); // kitty的owner
@@ -46,7 +51,13 @@ fn breed_kitties_works() {
 
     // 开始breed
     assert_ok!(KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id+1));
-
+    System::assert_has_event(
+      Event::KittyCreated {
+      sender: account_id,
+      kitty_id: kitty_id + 2,
+      kitty: KittiesModule::kitties(kitty_id + 2).unwrap(),
+    }.into());
+    assert_eq!(System::events().len(), 3); // 三次创建
     // 链上状态检查
     let breed_kitty_id = 2;
     
@@ -92,5 +103,13 @@ fn transfer_kitties_works() {
     // 转移完成，校验链上数据
     // kitty的owner
     assert_eq!(KittiesModule::kitty_owner(kitty_id), Some(receiver_id));
+
+    System::assert_has_event(
+      Event::KittyTransfered {
+      sender: account_id,
+      to: receiver_id,
+      kitty_id,
+    }.into());
+    assert_eq!(System::events().len(), 2); // 创建和转移
   });
 }
