@@ -8,13 +8,17 @@ mod mock;
 #[cfg(test)]
 mod test;
 
+// token质押、transfer
+// 创建kitty时需要质押一定数量的token
+
 #[frame_support::pallet]
 pub mod pallet {
 	pub use frame_support::pallet_prelude::*;
 	use frame_support::Blake2_128Concat;
 	pub use frame_system::pallet_prelude::*;
 
-	use frame_support::traits::Randomness;
+	use frame_support::traits::Currency;
+	use frame_support::traits::{Randomness, ReservableCurrency}; // ReservableCurrency 用来做质押
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 	use sp_io::hashing::blake2_128;
 
@@ -22,12 +26,21 @@ pub mod pallet {
 	#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 	pub struct Kitty(pub [u8; 16]);
 
+	// 注意这里balance的type的定义
+	pub type BalanceOf<T> =
+		<<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+
 	#[pallet::config] // 模块配置
 	pub trait Config: frame_system::Config {
 		#[pallet::constant]
 		type MaxClaimLength: Get<u32>;
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
 		type KittyRandomness: Randomness<Self::Hash, Self::BlockNumber>;
+
+		#[pallet::constant]
+		type KittyPrice: Get<BalanceOf<Self>>; // kitty的价格
+
+		type Currency: ReservableCurrency<Self::AccountId>;
 	}
 
 	#[pallet::pallet]
@@ -75,6 +88,9 @@ pub mod pallet {
 			let kitty_id = Self::get_next_id()?;
 			let kitty = Kitty(Self::random_value(&sender));
 
+			let price = T::KittyPrice::get();
+			T::Currency::reserve(&sender, price)?; // 质押price数量的token
+
 			Kitties::<T>::insert(kitty_id, &kitty);
 			KittyOwner::<T>::insert(kitty_id, &sender);
 
@@ -91,12 +107,15 @@ pub mod pallet {
 		) -> DispatchResult {
 			// 繁殖
 			let sender = ensure_signed(origin)?;
-      // 要求两个kittyid是不一样的
+			// 要求两个kittyid是不一样的
 			ensure!(kitty_id1 != kitty_id2, Error::<T>::SameKittyId);
-			
+
 			// 确定是合法的kittyId
 			ensure!(Kitties::<T>::contains_key(kitty_id1), Error::<T>::InvalidKittyId);
 			ensure!(Kitties::<T>::contains_key(kitty_id2), Error::<T>::InvalidKittyId);
+
+			let price = T::KittyPrice::get();
+			T::Currency::reserve(&sender, price)?;
 
 			let kitty_id = Self::get_next_id()?; // 生成新kitty的id
 			let kitty1 = Self::kitties(kitty_id1).ok_or(Error::<T>::KittyNotExist)?;
