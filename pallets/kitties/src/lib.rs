@@ -55,6 +55,10 @@ pub mod pallet {
 	pub type Kitties<T> = StorageMap<_, Blake2_128Concat, KittyId, Kitty>;
 
 	#[pallet::storage]
+	#[pallet::getter(fn kitties_on_sale)]
+	pub type KittiesOnSale<T> = StorageMap<_, Blake2_128Concat, KittyId, ()>;
+
+	#[pallet::storage]
 	#[pallet::getter(fn kitty_owner)]
 	pub type KittyOwner<T: Config> = StorageMap<_, Blake2_128Concat, KittyId, T::AccountId>;
 
@@ -70,6 +74,7 @@ pub mod pallet {
 		SameKittyId,
 		KittyNotExist,
 		NotOwner,
+		AlreadyOnSale,
 	}
 
 	#[pallet::event]
@@ -77,6 +82,7 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		KittyCreated { sender: T::AccountId, kitty_id: KittyId, kitty: Kitty },
 		KittyTransfered { sender: T::AccountId, to: T::AccountId, kitty_id: KittyId },
+		KittyOnSale { sender: T::AccountId, kitty_id: KittyId },
 	}
 
 	#[pallet::call]
@@ -156,6 +162,22 @@ pub mod pallet {
 
 			KittyOwner::<T>::insert(kitty_id, &to);
 			Self::deposit_event(Event::KittyTransfered { sender, to, kitty_id });
+			Ok(())
+		}
+
+		#[pallet::weight(4)]
+		#[pallet::call_index(4)]
+		pub fn sale(sender: OriginFor<T>, kitty_id: KittyId) -> DispatchResult {
+			let sender = ensure_signed(sender)?;
+			Self::kitties(kitty_id).ok_or(Error::<T>::KittyNotExist)?;
+			let owner = Self::kitty_owner(kitty_id).ok_or(Error::<T>::InvalidKittyId)?;
+
+			ensure!(sender == owner, Error::<T>::NotOwner);
+
+			ensure!(Self::kitties_on_sale(kitty_id).is_none(), Error::<T>::AlreadyOnSale);
+
+			KittiesOnSale::<T>::insert(kitty_id, ());
+			Self::deposit_event(Event::KittyOnSale{ sender, kitty_id });
 			Ok(())
 		}
 	}
