@@ -17,7 +17,7 @@ pub mod pallet {
 	use frame_support::Blake2_128Concat;
 	pub use frame_system::pallet_prelude::*;
 
-	use frame_support::traits::Currency;
+	use frame_support::traits::{Currency, ExistenceRequirement};
 	use frame_support::traits::{Randomness, ReservableCurrency}; // ReservableCurrency 用来做质押
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 	use sp_io::hashing::blake2_128;
@@ -73,8 +73,11 @@ pub mod pallet {
 		InvalidKittyId,
 		SameKittyId,
 		KittyNotExist,
-		NotOwner,
-		AlreadyOnSale,
+		NotOwner, // 不是所有者
+		AlreadyOnSale, // 在售
+		NotOnSale, // 没有在售
+		AlreadyOwned, // 已经拥有
+		NotOwned // 没有所有者
 	}
 
 	#[pallet::event]
@@ -178,6 +181,29 @@ pub mod pallet {
 
 			KittiesOnSale::<T>::insert(kitty_id, ());
 			Self::deposit_event(Event::KittyOnSale{ sender, kitty_id });
+			Ok(())
+		}
+
+		#[pallet::weight(5)]
+		#[pallet::call_index(5)]
+		pub fn buy(sender: OriginFor<T>, kitty_id: KittyId) -> DispatchResult { // 购买
+			// 验证签名
+			let sender = ensure_signed(sender)?;
+			// 验证存在这个kitty
+			Self::kitties(kitty_id).ok_or(Error::<T>::InvalidKittyId)?;
+			// 验证sender不是owner
+			let owner = Self::kitty_owner(kitty_id).ok_or(Error::<T>::NotOwned)?; // 没有owner
+			ensure!(sender != owner, Error::<T>::AlreadyOwned);
+			// 验证kitty是否在售卖
+			Self::kitties_on_sale(kitty_id).ok_or(Error::<T>::NotOnSale)?;
+			// 转移sender price数量的token到owner
+			let price = T::KittyPrice::get();
+			T::Currency::reserve(&sender, price)?;
+			T::Currency::unreserve(&owner, price);
+			// 更新kittyOwner数据
+			<KittyOwner<T>>::insert(kitty_id, &sender);
+			// 删除kitty on sale中的数据
+			<KittiesOnSale<T>>::remove(kitty_id);
 			Ok(())
 		}
 	}
