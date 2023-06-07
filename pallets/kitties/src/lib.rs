@@ -14,11 +14,11 @@ mod test;
 #[frame_support::pallet]
 pub mod pallet {
 	pub use frame_support::pallet_prelude::*;
-	use frame_support::Blake2_128Concat;
-	pub use frame_system::pallet_prelude::*;
-	use frame_support::PalletId;
 	use frame_support::traits::{Currency, ExistenceRequirement};
 	use frame_support::traits::{Randomness, ReservableCurrency}; // ReservableCurrency 用来做质押
+	use frame_support::Blake2_128Concat;
+	use frame_support::PalletId;
+	pub use frame_system::pallet_prelude::*;
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 	use sp_io::hashing::blake2_128;
 	use sp_runtime::traits::AccountIdConversion;
@@ -76,11 +76,11 @@ pub mod pallet {
 		InvalidKittyId,
 		SameKittyId,
 		KittyNotExist,
-		NotOwner, // 不是所有者
+		NotOwner,      // 不是所有者
 		AlreadyOnSale, // 在售
-		NotOnSale, // 没有在售
-		AlreadyOwned, // 已经拥有
-		NotOwned // 没有所有者
+		NotOnSale,     // 没有在售
+		AlreadyOwned,  // 已经拥有
+		NotOwned,      // 没有所有者
 	}
 
 	#[pallet::event]
@@ -102,7 +102,12 @@ pub mod pallet {
 
 			let price = T::KittyPrice::get();
 			// T::Currency::reserve(&sender, price)?; // 质押price数量的token
-			T::Currency::transfer(&sender, &Self::get_account_id(), price, ExistenceRequirement::KeepAlive);
+			T::Currency::transfer(
+				&sender,
+				&Self::get_account_id(),
+				price,
+				ExistenceRequirement::KeepAlive,
+			);
 
 			Kitties::<T>::insert(kitty_id, &kitty);
 			KittyOwner::<T>::insert(kitty_id, &sender);
@@ -129,7 +134,12 @@ pub mod pallet {
 
 			let price = T::KittyPrice::get();
 			// T::Currency::reserve(&sender, price)?;
-			T::Currency::transfer(&sender, &Self::get_account_id(), price, ExistenceRequirement::KeepAlive);
+			T::Currency::transfer(
+				&sender,
+				&Self::get_account_id(),
+				price,
+				ExistenceRequirement::KeepAlive,
+			);
 
 			let kitty_id = Self::get_next_id()?; // 生成新kitty的id
 			let kitty1 = Self::kitties(kitty_id1).ok_or(Error::<T>::KittyNotExist)?;
@@ -185,13 +195,14 @@ pub mod pallet {
 			ensure!(Self::kitties_on_sale(kitty_id).is_none(), Error::<T>::AlreadyOnSale);
 
 			KittiesOnSale::<T>::insert(kitty_id, ());
-			Self::deposit_event(Event::KittyOnSale{ sender, kitty_id });
+			Self::deposit_event(Event::KittyOnSale { sender, kitty_id });
 			Ok(())
 		}
 
 		#[pallet::weight(5)]
 		#[pallet::call_index(5)]
-		pub fn buy(sender: OriginFor<T>, kitty_id: KittyId) -> DispatchResult { // 购买
+		pub fn buy(sender: OriginFor<T>, kitty_id: KittyId) -> DispatchResult {
+			// 购买
 			// 验证签名
 			let sender = ensure_signed(sender)?;
 			// 验证存在这个kitty
@@ -234,7 +245,7 @@ pub mod pallet {
 		}
 
 		fn get_account_id() -> T::AccountId {
-			T::PalletId::get().into_account()
+			T::PalletId::get().into_account_truncating()
 		}
 	}
 }
