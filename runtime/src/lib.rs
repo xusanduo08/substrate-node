@@ -36,6 +36,7 @@ pub use frame_support::{
 		IdentityFee, Weight,
 	},
 	StorageValue,
+	PalletId
 };
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
@@ -135,7 +136,7 @@ pub fn native_version() -> NativeVersion {
 
 const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(75);
 
-parameter_types! {
+parameter_types! { // 这个宏为Get trait做实现
 	pub const BlockHashCount: BlockNumber = 2400;
 	pub const Version: RuntimeVersion = VERSION;
 	/// We allow for 2 seconds of compute with a 6 second average block time.
@@ -147,6 +148,8 @@ parameter_types! {
 	pub BlockLength: frame_system::limits::BlockLength = frame_system::limits::BlockLength
 		::max_with_normal_ratio(5 * 1024 * 1024, NORMAL_DISPATCH_RATIO);
 	pub const SS58Prefix: u8 = 42;
+	pub KittyPrice: Balance = EXISTENTIAL_DEPOSIT * 10;
+	pub KittyPalletId: PalletId = PalletId(*b"py/kitty");
 }
 
 // Configure FRAME pallets to include in runtime.
@@ -258,6 +261,10 @@ impl pallet_kitties::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxClaimLength = ConstU32<512>;
 	type KittyRandomness = RandomnessModule;
+	type Currency = Balances;
+	
+	type KittyPrice = KittyPrice;
+  type PalletId = KittyPalletId;
 }
 
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
