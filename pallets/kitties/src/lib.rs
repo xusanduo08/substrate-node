@@ -16,11 +16,12 @@ pub mod pallet {
 	pub use frame_support::pallet_prelude::*;
 	use frame_support::Blake2_128Concat;
 	pub use frame_system::pallet_prelude::*;
-
+	use frame_support::PalletId;
 	use frame_support::traits::{Currency, ExistenceRequirement};
 	use frame_support::traits::{Randomness, ReservableCurrency}; // ReservableCurrency 用来做质押
 	use frame_system::{ensure_signed, pallet_prelude::OriginFor};
 	use sp_io::hashing::blake2_128;
+	use sp_runtime::traits::AccountIdConversion;
 
 	pub type KittyId = u32;
 	#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
@@ -40,7 +41,9 @@ pub mod pallet {
 		#[pallet::constant]
 		type KittyPrice: Get<BalanceOf<Self>>; // kitty的价格
 
-		type Currency: ReservableCurrency<Self::AccountId>;
+		type Currency: Currency<Self::AccountId>;
+
+		type PalletId: Get<PalletId>;
 	}
 
 	#[pallet::pallet]
@@ -98,7 +101,8 @@ pub mod pallet {
 			let kitty = Kitty(Self::random_value(&sender));
 
 			let price = T::KittyPrice::get();
-			T::Currency::reserve(&sender, price)?; // 质押price数量的token
+			// T::Currency::reserve(&sender, price)?; // 质押price数量的token
+			T::Currency::transfer(&sender, &Self::get_account_id(), price, ExistenceRequirement::KeepAlive);
 
 			Kitties::<T>::insert(kitty_id, &kitty);
 			KittyOwner::<T>::insert(kitty_id, &sender);
@@ -124,7 +128,8 @@ pub mod pallet {
 			ensure!(Kitties::<T>::contains_key(kitty_id2), Error::<T>::InvalidKittyId);
 
 			let price = T::KittyPrice::get();
-			T::Currency::reserve(&sender, price)?;
+			// T::Currency::reserve(&sender, price)?;
+			T::Currency::transfer(&sender, &Self::get_account_id(), price, ExistenceRequirement::KeepAlive);
 
 			let kitty_id = Self::get_next_id()?; // 生成新kitty的id
 			let kitty1 = Self::kitties(kitty_id1).ok_or(Error::<T>::KittyNotExist)?;
@@ -198,8 +203,9 @@ pub mod pallet {
 			Self::kitties_on_sale(kitty_id).ok_or(Error::<T>::NotOnSale)?;
 			// 转移sender price数量的token到owner
 			let price = T::KittyPrice::get();
-			T::Currency::reserve(&sender, price)?;
-			T::Currency::unreserve(&owner, price);
+			// T::Currency::reserve(&sender, price)?;
+			// T::Currency::unreserve(&owner, price);
+			T::Currency::transfer(&sender, &owner, price, ExistenceRequirement::KeepAlive);
 			// 更新kittyOwner数据
 			<KittyOwner<T>>::insert(kitty_id, &sender);
 			// 删除kitty on sale中的数据
@@ -225,6 +231,10 @@ pub mod pallet {
 			);
 
 			payload.using_encoded(blake2_128)
+		}
+
+		fn get_account_id() -> T::AccountId {
+			T::PalletId::get().into_account()
 		}
 	}
 }
