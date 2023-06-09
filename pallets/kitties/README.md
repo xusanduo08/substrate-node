@@ -41,6 +41,26 @@
 
 数据正确
 
+### V0 -> V2
+
+升级前：版本为100， `create`方法不带参数
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/f2ce1b75-2545-4932-96be-79ef40c115cc)
+
+
+创建一个kitty，然后查询kitty_id=0的数据，如下：
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/760fb52c-5f2a-4c1c-8390-66f635efca18)
+
+
+开始升级
+![企业微信截图_16863045659408](https://github.com/xusanduo08/substrate-node/assets/17930163/d712be4c-bd3a-425a-98b5-c978721b2e63)
+
+升级成功，左上角版本号已变为300
+![企业微信截图_16863045892198](https://github.com/xusanduo08/substrate-node/assets/17930163/aa231f72-b4a6-4655-8612-474c9a4fcbf7)
+
+再次查询刚刚创建的kitty，name字段已变为8字节，数据正确
+![企业微信截图_16863046249602](https://github.com/xusanduo08/substrate-node/assets/17930163/3c20bfb2-2ff9-40e6-8e79-0e95e7518d65)
+
+
 
 ### V1 -> V2
 升级前：版本为200，kitty带有name:[u8;4]属性
