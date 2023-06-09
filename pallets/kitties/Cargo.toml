@@ -26,7 +26,7 @@ sp-runtime = { version = "7.0.0", default-features = false, git = "https://githu
 
 [dev-dependencies]
 sp-core = { version = "7.0.0", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.42" }
-
+pallet-balances = { version = "4.0.0-dev", git = "https://github.com/paritytech/substrate.git", branch = "polkadot-v0.9.42" }
 
 
 [features]

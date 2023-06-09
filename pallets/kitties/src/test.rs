@@ -8,7 +8,7 @@ fn create_kities_works() {
 		let account_id = 1;
 
 		assert_eq!(KittiesModule::next_kitty_id(), kitty_id);
-		assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id)));
+		assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
     System::assert_has_event(
       Event::KittyCreated {
       sender: account_id,
@@ -22,7 +22,7 @@ fn create_kities_works() {
 
 		crate::NextKittyId::<Test>::set(crate::KittyId::max_value());
 		assert_noop!(
-			KittiesModule::create(RuntimeOrigin::signed(account_id)),
+			KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"),
 			Error::<Test>::InvalidKittyId
 		);
 	});
@@ -35,22 +35,22 @@ fn breed_kitties_works() {
 		let account_id = 1;
 
 		assert_noop!(
-			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id),
+			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id, *b"abcd"),
 			Error::<Test>::SameKittyId
 		); // 两个kittyid不能相同
 		assert_noop!(
-			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id + 1),
+			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id + 1, *b"abcd"),
 			Error::<Test>::InvalidKittyId
 		);
 
 		// 创建两个kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id)));
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id)));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
 
     assert_eq!(KittiesModule::next_kitty_id(), kitty_id + 2);
 
     // 开始breed
-    assert_ok!(KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id+1));
+    assert_ok!(KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id+1, *b"abcd"));
     System::assert_has_event(
       Event::KittyCreated {
       sender: account_id,
@@ -89,7 +89,7 @@ fn transfer_kitties_works() {
     );
 
     // 开始创建kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id)));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
 
     // 发起方不是kitty的owner
     assert_noop!(
