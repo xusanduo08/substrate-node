@@ -3,7 +3,6 @@ use frame_support::{migration::storage_key_iter, Blake2_128Concat};
 use frame_support::{
 	pallet_prelude::*, storage::StoragePrefixedMap, traits::GetStorageVersion, weights::Weight,
 };
-use frame_system::pallet_prelude::*;
 
 #[derive(Encode, Decode, Clone, Debug, TypeInfo, MaxEncodedLen, PartialEq, Eq)]
 pub struct oldKitty(pub [u8; 16]);

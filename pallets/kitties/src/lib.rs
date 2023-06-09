@@ -30,10 +30,10 @@ pub mod pallet {
 	#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
 	pub struct Kitty{
     pub dna: [u8; 16],
-    pub name: [u8; 4],
+    pub name: [u8; 8],
   }
 
-  const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+  const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	// 注意这里balance的type的定义
 	pub type BalanceOf<T> =
@@ -103,7 +103,7 @@ pub mod pallet {
   #[pallet::hooks]
   impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
     fn on_runtime_upgrade() -> Weight {
-      migrations::v1::migrate::<T>();
+      migrations::v2::migrate::<T>();
       Weight::zero()
     }
   }
@@ -112,7 +112,7 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
-		pub fn create(origin: OriginFor<T>, name: [u8; 4]) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>, name: [u8; 8]) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			let kitty_id = Self::get_next_id()?;
 			let kitty = Kitty{ dna: Self::random_value(&sender), name };
@@ -139,7 +139,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			kitty_id1: KittyId,
 			kitty_id2: KittyId,
-      name: [u8; 4]
+      name: [u8; 8]
 		) -> DispatchResult {
 			// 繁殖
 			let sender = ensure_signed(origin)?;

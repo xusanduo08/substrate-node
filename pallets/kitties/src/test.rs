@@ -14,7 +14,7 @@ fn create_kities_works() {
     );
 
 		assert_eq!(KittiesModule::next_kitty_id(), kitty_id);
-		assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
+		assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"));
     System::assert_has_event(
       Event::KittyCreated {
       sender: account_id,
@@ -28,7 +28,7 @@ fn create_kities_works() {
 
 		crate::NextKittyId::<Test>::set(crate::KittyId::max_value());
 		assert_noop!(
-			KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"),
+			KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"),
 			Error::<Test>::InvalidKittyId
 		);
 	});
@@ -47,22 +47,22 @@ fn breed_kitties_works() {
     );
     
 		assert_noop!(
-			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id, *b"abcd"),
+			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id, *b"abcdefgg"),
 			Error::<Test>::SameKittyId
 		); // 两个kittyid不能相同
 		assert_noop!(
-			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id + 1, *b"abcd"),
+			KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id + 1, *b"abcdefgg"),
 			Error::<Test>::InvalidKittyId
 		);
 
 		// 创建两个kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"));
 
     assert_eq!(KittiesModule::next_kitty_id(), kitty_id + 2);
 
     // 开始breed
-    assert_ok!(KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id+1, *b"abcd"));
+    assert_ok!(KittiesModule::breed(RuntimeOrigin::signed(account_id), kitty_id, kitty_id+1, *b"abcdefgg"));
     System::assert_has_event(
       Event::KittyCreated {
       sender: account_id,
@@ -106,7 +106,7 @@ fn transfer_kitties_works() {
     );
 
     // 开始创建kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"));
 
     // 发起方不是kitty的owner
     assert_noop!(
@@ -151,7 +151,7 @@ fn sale_kitties_works() {
     );
 
     // 开始创建kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcd"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(account_id), *b"abcdefgg"));
 
     // 发起方不是kitty的owner
     assert_noop!(
@@ -197,7 +197,7 @@ fn buy_kitties_works() {
 
     assert_eq!(KittiesModule::next_kitty_id(), kitty_id);
     // 开始创建kitty
-    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(owner_id), *b"abcd"));
+    assert_ok!(KittiesModule::create(RuntimeOrigin::signed(owner_id), *b"abcdefgg"));
 
     // 存在这个kitty
     assert_noop!(
