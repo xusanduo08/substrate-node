@@ -124,7 +124,7 @@ pub mod pallet {
 				&Self::get_account_id(),
 				price,
 				ExistenceRequirement::KeepAlive,
-			);
+			)?;
 
 			Kitties::<T>::insert(kitty_id, &kitty);
 			KittyOwner::<T>::insert(kitty_id, &sender);
@@ -157,7 +157,7 @@ pub mod pallet {
 				&Self::get_account_id(),
 				price,
 				ExistenceRequirement::KeepAlive,
-			);
+			)?;
 
 			let kitty_id = Self::get_next_id()?; // 生成新kitty的id
 			let kitty1 = Self::kitties(kitty_id1).ok_or(Error::<T>::KittyNotExist)?;
@@ -234,7 +234,7 @@ pub mod pallet {
 			let price = T::KittyPrice::get();
 			// T::Currency::reserve(&sender, price)?;
 			// T::Currency::unreserve(&owner, price);
-			T::Currency::transfer(&sender, &owner, price, ExistenceRequirement::KeepAlive);
+			T::Currency::transfer(&sender, &owner, price, ExistenceRequirement::KeepAlive)?;
 			// 更新kittyOwner数据
 			<KittyOwner<T>>::insert(kitty_id, &sender);
 			// 删除kitty on sale中的数据
