@@ -39,3 +39,25 @@
 ![企业微信截图_16862805004720](https://github.com/xusanduo08/substrate-node/assets/17930163/ffe472bd-61ba-4021-af83-e39c1b0d6d68)
 
 数据正确
+
+
+### V1 -> V2
+升级前：版本为200，kitty带有name:[u8;4]属性
+
+创建
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/007ad78f-637c-4170-b122-0606d5922366)
+
+查询
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/75d67920-4a34-4b1f-9421-48479fd29b6f)
+
+开始升级
+![企业微信截图_16863012377126](https://github.com/xusanduo08/substrate-node/assets/17930163/968eb7e0-fa39-4d68-a166-ba3f5ce4ff3b)
+
+升级成功，左上角版本号已经变为300
+![企业微信截图_1686301277434](https://github.com/xusanduo08/substrate-node/assets/17930163/41de9ee9-5ff2-467a-91cf-023147559101)
+
+再次查询刚刚创建的kitty，name字段已经变成8字节，数据正确
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/7d73781a-21ca-40e8-b1db-cd1b7c2afc92)
+
+
+
