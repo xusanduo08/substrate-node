@@ -2,6 +2,8 @@
 
 pub use pallet::*;
 
+mod migrations;
+
 #[cfg(test)]
 mod mock;
 
@@ -14,8 +16,7 @@ mod test;
 #[frame_support::pallet]
 pub mod pallet {
 	pub use frame_support::pallet_prelude::*;
-	use frame_support::traits::{Currency, ExistenceRequirement};
-	use frame_support::traits::{Randomness, ReservableCurrency}; // ReservableCurrency 用来做质押
+	use frame_support::traits::{Currency, ExistenceRequirement, StorageVersion, Randomness};
 	use frame_support::Blake2_128Concat;
 	use frame_support::PalletId;
 	pub use frame_system::pallet_prelude::*;
@@ -23,9 +24,16 @@ pub mod pallet {
 	use sp_io::hashing::blake2_128;
 	use sp_runtime::traits::AccountIdConversion;
 
+  use crate::migrations;
+
 	pub type KittyId = u32;
 	#[derive(Encode, Decode, Clone, Copy, RuntimeDebug, PartialEq, Eq, TypeInfo, MaxEncodedLen)]
-	pub struct Kitty(pub [u8; 16]);
+	pub struct Kitty{
+    pub dna: [u8; 16],
+    pub name: [u8; 4],
+  }
+
+  const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 	// 注意这里balance的type的定义
 	pub type BalanceOf<T> =
@@ -47,6 +55,7 @@ pub mod pallet {
 	}
 
 	#[pallet::pallet]
+  #[pallet::storage_version(STORAGE_VERSION)] // 给pallet增加version属性
 	pub struct Pallet<T>(_);
 
 	#[pallet::storage]
@@ -91,14 +100,22 @@ pub mod pallet {
 		KittyOnSale { sender: T::AccountId, kitty_id: KittyId },
 	}
 
+  #[pallet::hooks]
+  impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    fn on_runtime_upgrade() -> Weight {
+      migrations::v1::migrate::<T>();
+      Weight::zero()
+    }
+  }
+
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::weight(0)]
 		#[pallet::call_index(0)]
-		pub fn create(origin: OriginFor<T>) -> DispatchResult {
+		pub fn create(origin: OriginFor<T>, name: [u8; 4]) -> DispatchResult {
 			let sender = ensure_signed(origin)?;
 			let kitty_id = Self::get_next_id()?;
-			let kitty = Kitty(Self::random_value(&sender));
+			let kitty = Kitty{ dna: Self::random_value(&sender), name };
 
 			let price = T::KittyPrice::get();
 			// T::Currency::reserve(&sender, price)?; // 质押price数量的token
@@ -122,6 +139,7 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			kitty_id1: KittyId,
 			kitty_id2: KittyId,
+      name: [u8; 4]
 		) -> DispatchResult {
 			// 繁殖
 			let sender = ensure_signed(origin)?;
@@ -147,11 +165,11 @@ pub mod pallet {
 
 			let selector = Self::random_value(&sender);
 			let mut data = [0u8; 16];
-			for i in 0..kitty1.0.len() {
-				data[i] = (kitty1.0[i] & selector[i]) | (kitty2.0[i] & selector[i]);
+			for i in 0..kitty1.dna.len() {
+				data[i] = (kitty1.dna[i] & selector[i]) | (kitty2.dna[i] & selector[i]);
 			}
 
-			let kitty = Kitty(data);
+			let kitty = Kitty{ dna: data, name };
 			// 将kitty放入kitties中
 			Kitties::<T>::insert(kitty_id, &kitty);
 			// 更新kittyOwner
