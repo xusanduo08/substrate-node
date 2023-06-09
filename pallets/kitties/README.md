@@ -2,7 +2,8 @@
 
 ## Test
 
-![image](https://github.com/xusanduo08/substrate-node/assets/17930163/6c00ae87-c68a-4604-be30-5a3d34808b74)
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/c2fb1de2-c20c-4cb5-b1cb-ee87859b336f)
+
 
 ## Build
 
