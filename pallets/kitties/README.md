@@ -20,16 +20,22 @@
 ### V0->V1
 
 升级前：版本为100，`create`方法不带有`name`参数
-![image](https://github.com/xusanduo08/substrate-node/assets/17930163/6ab6dbd7-3086-41cb-9b46-0b6c6a2dd4ee)
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/b7326ae9-cf28-4cce-96bd-a2a0fdaaf9d4)
 
-查询kitty_id=0的kitty，如下：
-![image](https://github.com/xusanduo08/substrate-node/assets/17930163/b724bdde-3f76-4704-a153-b376d8972cd7)
+
+查询kitty_id = 0的kitty，如下：
+![image](https://github.com/xusanduo08/substrate-node/assets/17930163/debedc25-709e-4944-84de-fc07d09bc8f8)
+
 
 开始升级
 
-![image](https://github.com/xusanduo08/substrate-node/assets/17930163/8dbd8385-846b-4a42-a3a9-32ee7870139b)
+![企业微信截图_16862803535154](https://github.com/xusanduo08/substrate-node/assets/17930163/10c48a71-2da9-496b-b1c4-ea08c0000db3)
 
-升级完成，查看刚刚创建的kitty，如下
-![image](https://github.com/xusanduo08/substrate-node/assets/17930163/1eb9cfec-bbc9-4810-b1df-0d083b97932b)
+升级完成
+![企业微信截图_16862804756402](https://github.com/xusanduo08/substrate-node/assets/17930163/cd800e1d-4b59-4c61-9999-05485c53dcae)
+
+
+查看刚刚创建的kitty，如下
+![企业微信截图_16862805004720](https://github.com/xusanduo08/substrate-node/assets/17930163/ffe472bd-61ba-4021-af83-e39c1b0d6d68)
 
 数据正确
