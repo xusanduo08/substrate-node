@@ -16,6 +16,8 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
+use sp_runtime:: { traits::Zero, offchain:: { storage::StorageValueRef } };
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
@@ -104,33 +106,34 @@ pub mod pallet {
 				},
 			}
 		}
-	
-    
+	}
+
+  impl<T: Config> Pallet<T> {
+    #[deny(clippy::clone_double_ref)]
+    pub fn derive_key(block_number: T::BlockNumber) -> Vec<u8> {
+      block_number.using_encoded(|encoded_bn| {
+        b"node-template::storage::"
+          .iter()
+          .chain(encoded_bn)
+          .copied()
+          .collect::<Vec<u8>>()
+      })
+    }
   }
 
   #[pallet::hooks]
   impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    // 奇数写入数据，偶数读取数据
     fn offchain_worker(block_number: T::BlockNumber) {
       log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
-      let timeout = sp_io::offchain::timestamp().add(sp_runtime::offchain::Duration::from_millis(8000));
+      
+      if block_number % 2u32.into() != Zero::zero() {
+        // TODO
+      }
 
-      sp_io::offchain::sleep_until(timeout);
+
 
       log::info!("OCW==> Leave from offchain workers!: {:?}", block_number);
-    }
-
-    fn on_initialize(_n: T::BlockNumber) -> Weight {
-      log::info!("OCW ==> in on_initialize");
-      Weight::from_parts(0, 0)
-    }
-
-    fn on_finalize(_n: T::BlockNumber) {
-      log::info!("OCW==> in on_finalize!");
-    }
-
-    fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
-      log::info!("OCW==> in on_idle");
-      Weight::from_parts(0, 0)
     }
   }
 }
