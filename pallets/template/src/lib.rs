@@ -20,7 +20,7 @@ pub use weights::*;
 pub mod pallet {
 	use super::*;
 	use frame_support::pallet_prelude::*;
-	use frame_system::pallet_prelude::*;
+	use frame_system::{pallet_prelude::*};
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -104,5 +104,14 @@ pub mod pallet {
 				},
 			}
 		}
-	}
+	
+    
+  }
+
+  #[pallet::hooks]
+  impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    fn offchain_worker(block_number: T::BlockNumber) {
+      log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
+    }
+  }
 }
