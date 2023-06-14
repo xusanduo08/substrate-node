@@ -113,5 +113,19 @@ pub mod pallet {
     fn offchain_worker(block_number: T::BlockNumber) {
       log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
     }
+
+    fn on_initialize(_n: T::BlockNumber) -> Weight {
+      log::info!("OCW ==> in on_initialize");
+      Weight::from_parts(0, 0)
+    }
+
+    fn on_finalize(_n: T::BlockNumber) {
+      log::info!("OCW==> in on_finalize!");
+    }
+
+    fn on_idle(_n: T::BlockNumber, _remaining_weight: Weight) -> Weight {
+      log::info!("OCW==> in on_idle");
+      Weight::from_parts(0, 0)
+    }
   }
 }
