@@ -129,6 +129,25 @@ pub mod pallet {
       
       if block_number % 2u32.into() != Zero::zero() {
         // TODO
+        let key = Self::derive_key(block_number);
+        let val_ref = StorageValueRef::persistent(&key);
+
+        let random_slice = sp_io::offchain::random_seed();
+
+        let time_stamp_u64 = sp_io::offchain::timestamp().unix_millis();
+
+        let value = (random_slice, time_stamp_u64);
+
+        log::info!("OCW ==> in odd block, value to write: {:?}", value);
+        val_ref.set(&value);
+      } else {
+        let key = Self::derive_key(block_number - 1u32.into());
+        let mut val_ref = StorageValueRef::persistent(&key);
+
+        if let Ok(Some(value)) = val_ref.get::<([u8; 32], u64)>() {
+          log::info!("OCW ==> in even block, value read: {:?}", value);
+          val_ref.clear();
+        }
       }
 
 
