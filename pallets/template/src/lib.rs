@@ -21,6 +21,7 @@ use sp_runtime:: { traits::Zero, offchain:: { storage::StorageValueRef } };
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
+  use frame_support::inherent::Vec;
 	use frame_support::pallet_prelude::*;
 	use frame_system::{pallet_prelude::*};
 
@@ -128,7 +129,7 @@ pub mod pallet {
       log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
       
       if block_number % 2u32.into() != Zero::zero() {
-        // TODO
+      
         let key = Self::derive_key(block_number);
         let val_ref = StorageValueRef::persistent(&key);
 
@@ -141,6 +142,7 @@ pub mod pallet {
         log::info!("OCW ==> in odd block, value to write: {:?}", value);
         val_ref.set(&value);
       } else {
+        // block_number是逐个增加的，-1就能获取到上个block_numbers
         let key = Self::derive_key(block_number - 1u32.into());
         let mut val_ref = StorageValueRef::persistent(&key);
 
