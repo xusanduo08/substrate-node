@@ -16,7 +16,7 @@ mod benchmarking;
 pub mod weights;
 pub use weights::*;
 
-use sp_runtime:: { traits::Zero, offchain:: { storage::StorageValueRef } };
+use sp_runtime:: { traits::Zero, offchain:: { storage::StorageValueRef, storage::MutateStorageError } };
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -139,8 +139,20 @@ pub mod pallet {
 
         let value = (random_slice, time_stamp_u64);
 
-        log::info!("OCW ==> in odd block, value to write: {:?}", value);
-        val_ref.set(&value);
+        struct StateError;
+        // 原子化修改
+        let res = val_ref.mutate(|val: Result<Option<([u8; 32], u64)>, sp_runtime::offchain::storage::StorageRetrievalError>| -> Result<_, StateError> {
+          match val {
+            Ok(Some(_)) => Ok(value),
+            _ => Ok(value),
+          }
+        });
+
+        match res {
+          Ok(value) => log::info!("OCW ==> in odd block, mutate value successful: {:?}", value),
+          Err(MutateStorageError::ValueFunctionFailed(_)) => (),
+          Err(MutateStorageError::ConcurrentModification(_)) => (),
+        }
       } else {
         // block_number是逐个增加的，-1就能获取到上个block_numbers
         let key = Self::derive_key(block_number - 1u32.into());
