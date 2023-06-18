@@ -13,3 +13,7 @@ https://github.com/xusanduo08/substrate-node/tree/main/pallets/poe
 ## Kitties
 
 https://github.com/xusanduo08/substrate-node/tree/main/pallets/kitties
+
+## Template
+
+https://github.com/xusanduo08/substrate-node/tree/main/pallets/template
