@@ -18,12 +18,44 @@ pub use weights::*;
 
 use sp_runtime:: { traits::Zero, offchain:: { storage::StorageValueRef, storage::MutateStorageError } };
 
+use serde::{ self, Deserialize, Deserializer};
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
   use frame_support::inherent::Vec;
 	use frame_support::pallet_prelude::*;
 	use frame_system::{pallet_prelude::*};
+use sp_runtime::offchain::http::{self, Request};
+  use sp_core::offchain::Duration;
+
+  #[derive(Deserialize, Encode, Decode)]
+  pub struct GithubInfo {
+    #[serde(deserialize_with="de_string_to_bytes")]
+    login: Vec<u8>,
+    #[serde(deserialize_with="de_string_to_bytes")]
+    blog: Vec<u8>,
+    public_repos: u32,
+  }
+
+  pub fn de_string_to_bytes<'de, D>(de: D) -> Result<Vec<u8>, D::Error>
+    where D: Deserializer<'de>{
+      let s: &str = Deserialize::deserialize(de)?;
+      Ok(s.as_bytes().to_vec())
+  }
+
+  use core::{ convert::TryInto, fmt };
+  impl fmt::Debug for GithubInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+      write!(
+        f,
+        "{{ login: {}, blog: {}, public_repos: {} }}",
+        sp_std::str::from_utf8(&self.login).map_err(|_| fmt::Error)?,
+        sp_std::str::from_utf8(&self.blog).map_err(|_| fmt::Error)?,
+        &self.public_repos
+        )
+    }
+  }
 
 	#[pallet::pallet]
 	pub struct Pallet<T>(_);
@@ -120,53 +152,84 @@ pub mod pallet {
           .collect::<Vec<u8>>()
       })
     }
+
+    pub fn fetch_github_info() -> Result<GithubInfo, http::Error>{
+      let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(8_000));
+      let request = http::Request::get("https://api.github.com/orgs/substrate-developer-hub");
+      let pending = request
+        .add_header("User-Agent", "Substrate-Offchain-Worker")
+        .deadline(deadline).send().map_err(|_| http::Error::IoError)?;
+
+      let response = pending.try_wait(deadline).map_err(|_| http::Error::DeadlineReached)??;
+      if response.code != 200 {
+        log::warn!("Unexpected status code: {}", response.code);
+        return Err(http::Error::Unknown)
+      }
+
+      let body = response.body().collect::<Vec<u8>>();
+      let body_str = sp_std::str::from_utf8(&body).map_err(|_| {
+        log::warn!("No UTF8 body");
+        http::Error::Unknown
+      })?;
+
+      let gh_info: GithubInfo = serde_json::from_str(body_str).map_err(|_| http::Error::Unknown)?;
+      Ok(gh_info)
+    }
   }
 
   #[pallet::hooks]
   impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
     // 奇数写入数据，偶数读取数据
+    // fn offchain_worker(block_number: T::BlockNumber) {
+    //   log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
+      
+    //   if block_number % 2u32.into() != Zero::zero() {
+      
+    //     let key = Self::derive_key(block_number);
+    //     let val_ref = StorageValueRef::persistent(&key);
+
+    //     let random_slice = sp_io::offchain::random_seed();
+
+    //     let time_stamp_u64 = sp_io::offchain::timestamp().unix_millis();
+
+    //     let value = (random_slice, time_stamp_u64);
+
+    //     struct StateError;
+    //     // 原子化修改
+    //     let res = val_ref.mutate(|val: Result<Option<([u8; 32], u64)>, sp_runtime::offchain::storage::StorageRetrievalError>| -> Result<_, StateError> {
+    //       match val {
+    //         Ok(Some(_)) => Ok(value),
+    //         _ => Ok(value),
+    //       }
+    //     });
+
+    //     match res {
+    //       Ok(value) => log::info!("OCW ==> in odd block, mutate value successful: {:?}", value),
+    //       Err(MutateStorageError::ValueFunctionFailed(_)) => (),
+    //       Err(MutateStorageError::ConcurrentModification(_)) => (),
+    //     }
+    //   } else {
+    //     // block_number是逐个增加的，-1就能获取到上个block_numbers
+    //     let key = Self::derive_key(block_number - 1u32.into());
+    //     let mut val_ref = StorageValueRef::persistent(&key);
+
+    //     if let Ok(Some(value)) = val_ref.get::<([u8; 32], u64)>() {
+    //       log::info!("OCW ==> in even block, value read: {:?}", value);
+    //       val_ref.clear();
+    //     }
+    //   }
+    //   log::info!("OCW==> Leave from offchain workers!: {:?}", block_number);
+    // }
+
     fn offchain_worker(block_number: T::BlockNumber) {
-      log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
-      
-      if block_number % 2u32.into() != Zero::zero() {
-      
-        let key = Self::derive_key(block_number);
-        let val_ref = StorageValueRef::persistent(&key);
-
-        let random_slice = sp_io::offchain::random_seed();
-
-        let time_stamp_u64 = sp_io::offchain::timestamp().unix_millis();
-
-        let value = (random_slice, time_stamp_u64);
-
-        struct StateError;
-        // 原子化修改
-        let res = val_ref.mutate(|val: Result<Option<([u8; 32], u64)>, sp_runtime::offchain::storage::StorageRetrievalError>| -> Result<_, StateError> {
-          match val {
-            Ok(Some(_)) => Ok(value),
-            _ => Ok(value),
-          }
-        });
-
-        match res {
-          Ok(value) => log::info!("OCW ==> in odd block, mutate value successful: {:?}", value),
-          Err(MutateStorageError::ValueFunctionFailed(_)) => (),
-          Err(MutateStorageError::ConcurrentModification(_)) => (),
-        }
+      log::info!("OCW ==> Hello World from offchain workers!: {:?}", block_number);
+      if let Ok(info) = Self::fetch_github_info() {
+        log::info!("OCW ==> GithubInfo: {:?}", info);
       } else {
-        // block_number是逐个增加的，-1就能获取到上个block_numbers
-        let key = Self::derive_key(block_number - 1u32.into());
-        let mut val_ref = StorageValueRef::persistent(&key);
-
-        if let Ok(Some(value)) = val_ref.get::<([u8; 32], u64)>() {
-          log::info!("OCW ==> in even block, value read: {:?}", value);
-          val_ref.clear();
-        }
+        log::info!("OCW ==> Error while fetch github info!");
       }
 
-
-
-      log::info!("OCW==> Leave from offchain workers!: {:?}", block_number);
+      log::info!("OCW ==> Leave from offchian workers!: {:?}", block_number);
     }
   }
 }
