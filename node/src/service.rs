@@ -9,6 +9,7 @@ use sc_service::{error::Error as ServiceError, Configuration, TaskManager, WarpS
 use sc_telemetry::{Telemetry, TelemetryWorker};
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use std::{sync::Arc, time::Duration};
+use sc_keystore::LocalKeystore;
 
 // Our native executor instance.
 pub struct ExecutorDispatch;
@@ -79,8 +80,8 @@ pub fn new_partial(
 	let client = Arc::new(client);
 
 	if config.offchain_worker.enabled {
-        let keystore = keystore_container.sync_keystore();
-        sp_keystore::SyncCryptoStore::sr25519_generate_new(
+        let keystore = keystore_container.keystore();
+        sp_keystore::Keystore::sr25519_generate_new(
             &*keystore,
             node_template_runtime::pallet_template::KEY_TYPE,
             Some("//Alice"),
