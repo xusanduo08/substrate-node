@@ -4,8 +4,7 @@
 /// Learn more about FRAME and the core library of Substrate FRAME pallets:
 /// <https://docs.substrate.io/reference/frame-pallets/>
 pub use pallet::*;
-#[cfg(feature = "runtime-benchmarks")]
-mod benchmarking;
+
 pub mod weights;
 pub use weights::*;
 
@@ -19,9 +18,12 @@ use frame_system::{
     Signer,
   },
 };
+use frame_support::{inherent::Vec, pallet_prelude::*};
 use sp_core::crypto::KeyTypeId;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"ocwd");
+#[derive(Debug, Decode, Encode)]
+struct IndexingData(Vec<u8>,  u64);
 pub mod crypto {
   use super::KEY_TYPE;
   use sp_core::sr25519::Signature as Sr25519Signature;
@@ -52,9 +54,7 @@ pub mod crypto {
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-  use frame_support::inherent::Vec;
-	use frame_support::pallet_prelude::*;
-	use frame_system::{pallet_prelude::*};
+	use frame_system::{pallet_prelude::*, ensure_signed};
   use sp_runtime::offchain::http::{self, Request};
   use sp_core::offchain::Duration;
   use sp_std::vec;
@@ -100,14 +100,6 @@ pub mod pallet {
     type AuthorityId: AppCrypto<Self::Public, Self::Signature>;
 	}
 
-	// The pallet's runtime storage items.
-	// https://docs.substrate.io/main-docs/build/runtime-storage/
-	#[pallet::storage]
-	#[pallet::getter(fn something)]
-	// Learn more about declaring storage items:
-	// https://docs.substrate.io/main-docs/build/runtime-storage/#declaring-storage-items
-	pub type Something<T> = StorageValue<_, u32>;
-
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
@@ -132,50 +124,23 @@ pub mod pallet {
 	// Dispatchable functions must be annotated with a weight and must return a DispatchResult.
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-		/// An example dispatchable that takes a singles value as a parameter, writes the value to
-		/// storage and emits an event. This function must be dispatched by a signed extrinsic.
-		#[pallet::call_index(0)]
-		#[pallet::weight(T::WeightInfo::do_something())]
-		pub fn do_something(origin: OriginFor<T>, something: u32) -> DispatchResult {
-			// Check that the extrinsic was signed and get the signer.
-			// This function will return an error if the extrinsic is not signed.
-			// https://docs.substrate.io/main-docs/build/origins/
-			let who = ensure_signed(origin)?;
-
-			// Update storage.
-			<Something<T>>::put(something);
-
-			// Emit an event.
-			Self::deposit_event(Event::SomethingStored { something, who });
-			// Return a successful DispatchResultWithPostInfo
-			Ok(())
-		}
-
-		/// An example dispatchable that may throw a custom error.
-		#[pallet::call_index(1)]
-		#[pallet::weight(T::WeightInfo::cause_error())]
-		pub fn cause_error(origin: OriginFor<T>) -> DispatchResult {
-			let _who = ensure_signed(origin)?;
-
-			// Read a value from storage.
-			match <Something<T>>::get() {
-				// Return an error if the value has not been set.
-				None => return Err(Error::<T>::NoneValue.into()),
-				Some(old) => {
-					// Increment the value read from storage; will error in the event of overflow.
-					let new = old.checked_add(1).ok_or(Error::<T>::StorageOverflow)?;
-					// Update the value in storage with the incremented result.
-					<Something<T>>::put(new);
-					Ok(())
-				},
-			}
-		}
-
+    
     #[pallet::call_index(2)]
     #[pallet::weight(0)]
     pub fn submit_data(origin: OriginFor<T>, payload: Vec<u8>) -> DispatchResultWithPostInfo {
       let _who = ensure_signed(origin)?;
       log::info!("OCW ==> in submit_data call: {:?}", payload);
+      Ok(().into())
+    }
+
+    #[pallet::call_index(3)]
+    #[pallet::weight(0)]
+    pub fn extrinsics(origin: OriginFor<T>, number: u64) -> DispatchResultWithPostInfo {
+      let who = ensure_signed(origin)?;
+      let key = Self::derive_key(frame_system::Module::<T>::block_number());
+      let data = IndexingData(b"submit_number_unsigned".to_vec(), number);
+      sp_io::offchain_index::set(&key, &data.encode()); // 向offchain DB storage中写入数据
+      log::info!("====write to offchain storage");
       Ok(().into())
     }
 	}
@@ -214,81 +179,19 @@ pub mod pallet {
       let gh_info: GithubInfo = serde_json::from_str(body_str).map_err(|_| http::Error::Unknown)?;
       Ok(gh_info)
     }
-
-    fn send_signed_tx(payload: Vec<u8>) -> Result<(), &'static str> {
-      let signer = Signer::<T, T::AuthorityId>::all_accounts();
-      if !signer.can_sign() {
-        return Err(
-            "No local accounts available. Consider adding one via `author_insertKey` RPC.",
-            )
-      }
-
-      let results = signer.send_signed_transaction(|_account| {
-        Call::submit_data { payload: payload.clone() }
-      });
-
-      for (acc, res) in &results {
-        match res {
-          Ok(()) => log::info!("[{:?}] Submitted data:{:?}", acc.id, payload),
-          Err(e) => log::error!("[{:?}] Failed to submit transaction: {:?}", acc.id, e),
-        }
-      }
-
-      Ok(())
-    }
   }
 
   #[pallet::hooks]
   impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
-    // 奇数写入数据，偶数读取数据
-    // fn offchain_worker(block_number: T::BlockNumber) {
-    //   log::info!("OCW==> Hello world from offchain workers!: {:?}", block_number);
-      
-    //   if block_number % 2u32.into() != Zero::zero() {
-      
-    //     let key = Self::derive_key(block_number);
-    //     let val_ref = StorageValueRef::persistent(&key);
-
-    //     let random_slice = sp_io::offchain::random_seed();
-
-    //     let time_stamp_u64 = sp_io::offchain::timestamp().unix_millis();
-
-    //     let value = (random_slice, time_stamp_u64);
-
-    //     struct StateError;
-    //     // 原子化修改
-    //     let res = val_ref.mutate(|val: Result<Option<([u8; 32], u64)>, sp_runtime::offchain::storage::StorageRetrievalError>| -> Result<_, StateError> {
-    //       match val {
-    //         Ok(Some(_)) => Ok(value),
-    //         _ => Ok(value),
-    //       }
-    //     });
-
-    //     match res {
-    //       Ok(value) => log::info!("OCW ==> in odd block, mutate value successful: {:?}", value),
-    //       Err(MutateStorageError::ValueFunctionFailed(_)) => (),
-    //       Err(MutateStorageError::ConcurrentModification(_)) => (),
-    //     }
-    //   } else {
-    //     // block_number是逐个增加的，-1就能获取到上个block_numbers
-    //     let key = Self::derive_key(block_number - 1u32.into());
-    //     let mut val_ref = StorageValueRef::persistent(&key);
-
-    //     if let Ok(Some(value)) = val_ref.get::<([u8; 32], u64)>() {
-    //       log::info!("OCW ==> in even block, value read: {:?}", value);
-    //       val_ref.clear();
-    //     }
-    //   }
-    //   log::info!("OCW==> Leave from offchain workers!: {:?}", block_number);
-    // }
-
     fn offchain_worker(block_number: T::BlockNumber) {
-      log::info!("OCW ==> Hello World from offchain workers!: {:?}", block_number);
+      let key = Self::derive_key(block_number);
+      let storage_ref = StorageValueRef::persistent(&key);
 
-      let payload: Vec<u8> = vec![1,2,3,4,5,6,7,8];
-      _ = Self::send_signed_tx(payload);
-
-      log::info!("OCW ==> Leave from offchain workers!: {:?}", block_number);
+      if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
+        log::info!("local storage data: {:?}, {:?}", sp_std::str::from_utf8(&data.0).unwrap_or("error"), data.1);
+      } else {
+        log::info!("Error reading from local storage.");
+      }
     }
   }
 }
