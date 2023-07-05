@@ -17,3 +17,5 @@ https://github.com/xusanduo08/substrate-node/tree/main/pallets/kitties
 ## Template(Offchain相关功能)
 
 https://github.com/xusanduo08/substrate-node/tree/main/pallets/template
+
+* 使用indexing从链上想offchain storage写入数据，offchain worker读取数据，commit hash：16db8db9f6557b4ba801718d03fe36d84c7a6bd6
