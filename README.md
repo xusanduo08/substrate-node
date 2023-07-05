@@ -14,6 +14,6 @@ https://github.com/xusanduo08/substrate-node/tree/main/pallets/poe
 
 https://github.com/xusanduo08/substrate-node/tree/main/pallets/kitties
 
-## Template
+## Template(Offchain相关功能)
 
 https://github.com/xusanduo08/substrate-node/tree/main/pallets/template
