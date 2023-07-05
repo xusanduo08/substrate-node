@@ -23,7 +23,12 @@ use sp_core::crypto::KeyTypeId;
 
 pub const KEY_TYPE: KeyTypeId = KeyTypeId(*b"ocwd");
 #[derive(Debug, Decode, Encode)]
-struct IndexingData(Vec<u8>,  u64);
+struct IndexingData {
+  name: Vec<u8>,
+  number: u64
+}
+// type IndexingData = (Vec<u8>, u64);
+const OFFCHAIN_STORAGE_KEY: &[u8] = b"ocw-demo::storage::Tx";
 pub mod crypto {
   use super::KEY_TYPE;
   use sp_core::sr25519::Signature as Sr25519Signature;
@@ -138,8 +143,8 @@ pub mod pallet {
     pub fn extrinsics(origin: OriginFor<T>, number: u64) -> DispatchResultWithPostInfo {
       let who = ensure_signed(origin)?;
       let key = Self::derive_key(frame_system::Module::<T>::block_number());
-      let data = IndexingData(b"submit_number_unsigned".to_vec(), number);
-      sp_io::offchain_index::set(&key, &data.encode()); // 向offchain DB storage中写入数据
+      let data = IndexingData{ name: b"submit_number_unsigned".to_vec(), number };
+      sp_io::offchain_index::set(OFFCHAIN_STORAGE_KEY, &data.encode()); // 向offchain DB storage中写入数据
       log::info!("====write to offchain storage");
       Ok(().into())
     }
@@ -185,10 +190,10 @@ pub mod pallet {
   impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
     fn offchain_worker(block_number: T::BlockNumber) {
       let key = Self::derive_key(block_number);
-      let storage_ref = StorageValueRef::persistent(&key);
+      let storage_ref = StorageValueRef::persistent(OFFCHAIN_STORAGE_KEY);
 
       if let Ok(Some(data)) = storage_ref.get::<IndexingData>() {
-        log::info!("local storage data: {:?}, {:?}", sp_std::str::from_utf8(&data.0).unwrap_or("error"), data.1);
+        log::info!("local storage data: {:?}, {:?}", sp_std::str::from_utf8(&data.name).unwrap_or("error"), data.number);
       } else {
         log::info!("Error reading from local storage.");
       }
